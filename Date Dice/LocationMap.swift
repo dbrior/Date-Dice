@@ -16,6 +16,7 @@ struct LocationMap: View {
     @State private var searchResults: [MKMapItem] = []
     @State private var selectedMeterRadius: Double = 5000.0
     @State private var currentSearchTerm: String?
+    @State private var currentPoiCategory: MKPointOfInterestCategory?
     @State private var isLoading: Bool = false
     @State private var mapCameraPosition: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 0.0, longitude: 0.0),
@@ -91,12 +92,20 @@ struct LocationMap: View {
     }
     
     private func randomizeCategory() {
+        // Legacy method
         var idx = Int.random(in: 0..<searchTerms.count)
         while currentSearchTerm == searchTerms[idx] {
             idx = Int.random(in: 0..<searchTerms.count)
         }
-        
         currentSearchTerm = searchTerms[idx]
+        
+        // New method
+        var poiIdx = Int.random(in: 0..<poiCategories.count)
+        while currentPoiCategory == poiCategories[poiIdx] {
+            poiIdx = Int.random(in: 0..<poiCategories.count)
+        }
+        
+        currentPoiCategory = poiCategories[poiIdx]
     }
     
     var body: some View {
@@ -170,6 +179,66 @@ struct LocationMap: View {
         }
     }
     
+    private func addSpaces(_ str: String) -> String {
+        str.reduce("") { $0 + (($1.isUppercase && !$0.isEmpty && $0.last?.isLowercase == true) ? " " : "") + String($1) }
+    }
+    
+    private func queryByPoiCategory(category: MKPointOfInterestCategory, center: CLLocationCoordinate2D, radius: CLLocationDistance) async -> [MKMapItem] {
+        let request = MKLocalPointsOfInterestRequest(center: center, radius: radius)
+        request.pointOfInterestFilter = MKPointOfInterestFilter(including: [category])
+        
+        let categoryAsString = addSpaces("\(category.rawValue)".replacingOccurrences(of: "MKPOICategory", with: ""))
+        print("\(categoryAsString)")
+        currentSearchTerm = categoryAsString
+        
+        let latRange = (center.latitude - radius)...(center.latitude + radius)
+        let lonRange = (center.longitude - radius)...(center.longitude + radius)
+        
+        do {
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            
+            return response.mapItems.filter {
+                let itemLat = $0.placemark.coordinate.latitude
+                let itemLon = $0.placemark.coordinate.longitude
+                return latRange.contains(itemLat) && lonRange.contains(itemLon)
+            }
+        } catch {
+            print("Search error: \(error)")
+            return []
+        }
+    }
+    
+    private func queryByString(searchString: String, center: CLLocationCoordinate2D, radius: CLLocationDistance) async -> [MKMapItem] {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = searchString
+        request.resultTypes = .pointOfInterest
+        request.region = MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(
+                latitudeDelta: radius,
+                longitudeDelta: radius
+            )
+        )
+        
+        let latRange = (center.latitude - radius)...(center.latitude + radius)
+        let lonRange = (center.longitude - radius)...(center.longitude + radius)
+        
+        do {
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            
+            return response.mapItems.filter {
+                let itemLat = $0.placemark.coordinate.latitude
+                let itemLon = $0.placemark.coordinate.longitude
+                return latRange.contains(itemLat) && lonRange.contains(itemLon)
+            }
+        } catch {
+            print("Search error: \(error)")
+            return []
+        }
+    }
+    
     @MainActor
     private func performSearch() async {
         guard !isLoading, let location = locationManager.location else { return }
@@ -179,32 +248,22 @@ struct LocationMap: View {
         let searchRadius = calculateLatitudeDelta(meters: selectedMeterRadius)
         updateMapCamera()
         
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = currentSearchTerm
-        request.resultTypes = .pointOfInterest
-        request.region = MKCoordinateRegion(
-            center: location,
-            span: MKCoordinateSpan(
-                latitudeDelta: searchRadius,
-                longitudeDelta: searchRadius
-            )
-        )
+        let poiResults = await queryByPoiCategory(category: currentPoiCategory ?? .nightlife, center: location, radius: selectedMeterRadius)
+        let stringResults = await queryByString(searchString: currentSearchTerm ?? "Club", center: location, radius: searchRadius)
         
-        let latRange = (location.latitude - searchRadius)...(location.latitude + searchRadius)
-        let lonRange = (location.longitude - searchRadius)...(location.longitude + searchRadius)
-        
-        do {
-            let search = MKLocalSearch(request: request)
-            let response = try await search.start()
-            
-            searchResults = response.mapItems.filter {
-                let itemLat = $0.placemark.coordinate.latitude
-                let itemLon = $0.placemark.coordinate.longitude
-                return latRange.contains(itemLat) && lonRange.contains(itemLon)
+        let combinedResults = poiResults + stringResults
+        searchResults = combinedResults.reduce(into: [MKMapItem]()) { uniqueItems, item in
+            // Check if an item with the same placemark coordinate already exists
+            let isDuplicate = uniqueItems.contains { existingItem in
+                // Compare relevant properties to determine duplicates
+                return existingItem.placemark.coordinate.latitude == item.placemark.coordinate.latitude &&
+                       existingItem.placemark.coordinate.longitude == item.placemark.coordinate.longitude &&
+                       existingItem.name == item.name
             }
-        } catch {
-            print("Search error: \(error)")
-            searchResults = []
+            
+            if !isDuplicate {
+                uniqueItems.append(item)
+            }
         }
         
         isLoading = false
@@ -241,7 +300,7 @@ struct MapList : View {
     
     var body: some View {
         VStack {
-            List(Array(searchResults.enumerated()), id: \.element.name) { idx, mapItem in
+            List(Array(searchResults.enumerated()), id: \.element.placemark) { idx, mapItem in
                 MapListItem(idx: idx, mapItem: mapItem)
             }
             .listStyle(.plain)
