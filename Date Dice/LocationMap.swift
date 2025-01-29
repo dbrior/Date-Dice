@@ -79,13 +79,14 @@ struct LocationMap: View {
         return (meters / earthRadius) * (180.0 / .pi)
     }
     
-    private func updateMapCamera() {
-        guard let location = locationManager.location else { return }
+    private func updateMapCamera(center: CLLocationCoordinate2D) {
         let radius = calculateLatitudeDelta(meters: selectedMeterRadius * (25.0/9.0))
+        
+        print("Updating camera to: \(center), radius: \(radius)")
         
         withAnimation(.easeInOut) {
             mapCameraPosition = .region(MKCoordinateRegion(
-                center: location,
+                center: center,
                 span: MKCoordinateSpan(latitudeDelta: radius, longitudeDelta: radius)
             ))
         }
@@ -142,19 +143,17 @@ struct LocationMap: View {
                     VStack {
                         Spacer()
                         
-                        if locationManager.location == nil {
-                            LocationButton {
-                                locationManager.requestLocation()
-                            }
-                            .padding(.bottom)
-                        } else {
-                            ActivityButton(
-                                onClick: changeActivity,
-                                currentSearchTerm: currentSearchTerm,
-                                isLoading: isLoading
-                            )
-                            .padding(.bottom)
-                        }
+                        ActivityButton(
+                            onClick: changeActivity,
+                            currentSearchTerm: currentSearchTerm,
+                            isLoading: isLoading,
+                            isDisabled: locationManager.location == nil
+                        )
+                        .padding(.bottom)
+                    }
+                    
+                    if locationManager.location == nil {
+                        ProgressView()
                     }
                 }
                 
@@ -165,13 +164,21 @@ struct LocationMap: View {
 ////                        .animation(.spring(), value: searchResults.count > 0)
                 }
             }
+            .onReceive(locationManager.$location) { location in
+                if locationManager.location != nil {
+                    print("Valid location")
+                    updateMapCamera(center: locationManager.location!)
+                } else {
+                    locationManager.requestLocation()
+                }
+            }
             .onChange(of: searchResults.count) {
                 withAnimation(.easeInOut(duration: 1)) {
                     showList = searchResults.count > 0
                 }
             }
             .onChange(of: selectedMeterRadius) { oldValue, newValue in
-                updateMapCamera()
+                updateMapCamera(center: locationManager.location ?? CLLocationCoordinate2D(latitude: 0, longitude: 0))
                 Task {
                     await performSearch()
                 }
@@ -246,7 +253,7 @@ struct LocationMap: View {
         isLoading = true
         
         let searchRadius = calculateLatitudeDelta(meters: selectedMeterRadius)
-        updateMapCamera()
+        updateMapCamera(center: locationManager.location!)
         
         let poiResults = await queryByPoiCategory(category: currentPoiCategory ?? .nightlife, center: location, radius: selectedMeterRadius)
         let stringResults = await queryByString(searchString: currentSearchTerm ?? "Club", center: location, radius: searchRadius)
@@ -274,6 +281,7 @@ struct ActivityButton : View {
     var onClick: () async -> Void
     var currentSearchTerm: String?
     var isLoading: Bool
+    var isDisabled: Bool
     
     var body: some View {
         Button {
@@ -290,7 +298,7 @@ struct ActivityButton : View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.extraLarge)
-        .disabled(isLoading)
+        .disabled(isLoading || isDisabled)
         .font(.title)
     }
 }
