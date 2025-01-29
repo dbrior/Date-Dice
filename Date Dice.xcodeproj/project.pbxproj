@@ -258,8 +258,11 @@
 				INFOPLIST_FILE = "Date-Dice-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Date Dice";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "To find nearby points of interest";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "To find nearby points of interest";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Location is used in the Apple MapKit API to pull nearby points of interest. Outside of this, location data is not shared or stored in any way.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Location is used in the Apple MapKit API to pull nearby points of interest. Outside of this, location data is not shared or stored in any way.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "Location is used in conjunction with the selected meter-radius value to pull nearby points of interest using the MapKit MKLocalSearch API. Outside of this, location data is not shared or stored in any way.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location is used in the Apple MapKit API to pull nearby points of interest. Outside of this, location data is not shared or stored in any way.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -297,8 +300,11 @@
 				INFOPLIST_FILE = "Date-Dice-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Date Dice";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "To find nearby points of interest";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "To find nearby points of interest";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Location is used in the Apple MapKit API to pull nearby points of interest. Outside of this, location data is not shared or stored in any way.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Location is used in the Apple MapKit API to pull nearby points of interest. Outside of this, location data is not shared or stored in any way.";
+				INFOPLIST_KEY_NSLocationUsageDescription = "Location is used in conjunction with the selected meter-radius value to pull nearby points of interest using the MapKit MKLocalSearch API. Outside of this, location data is not shared or stored in any way.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location is used in the Apple MapKit API to pull nearby points of interest. Outside of this, location data is not shared or stored in any way.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

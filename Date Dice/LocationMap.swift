@@ -17,13 +17,15 @@ struct LocationMap: View {
     @State private var selectedMeterRadius: Double = 5000.0
     @State private var currentSearchTerm: String?
     @State private var currentPoiCategory: MKPointOfInterestCategory?
-    @State private var isLoading: Bool = false
     @State private var mapCameraPosition: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 0.0, longitude: 0.0),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     ))
     
+    @State private var isLoading: Bool = false
+    @State private var isFetchingLocation: Bool = false
     @State var showList: Bool = false
+    @State var returnedEmptyResult: Bool = false
     
     let searchTerms: [String] = [
         // Food & Drink
@@ -140,20 +142,48 @@ struct LocationMap: View {
                     }
                     .frame(minHeight: UIScreen.main.bounds.height * 0.5)
                     
+                    if locationManager.authorizationStatus == .denied {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10.0)
+                                .fill(.black)
+                                .opacity(0.5)
+                                .fixedSize()
+                            VStack {
+                                Text("Location access is denied")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                Text("Go to Settings > Privacy & Securtiy > Location Services > Date Dice")
+                            }
+                            .padding()
+                        }
+                    } else if isFetchingLocation {
+                        LoadingNotice(labelText: "Fetching location data")
+                    } else if isLoading {
+                        LoadingNotice(labelText: "Searching")
+                    }
+                    
                     VStack {
                         Spacer()
                         
-                        ActivityButton(
-                            onClick: changeActivity,
-                            currentSearchTerm: currentSearchTerm,
-                            isLoading: isLoading,
-                            isDisabled: locationManager.location == nil
-                        )
-                        .padding(.bottom)
-                    }
-                    
-                    if locationManager.location == nil {
-                        ProgressView()
+                        if locationManager.location == nil {
+                            BigButton(
+                                onClick: {
+                                    isFetchingLocation = true
+                                    locationManager.requestLocation()
+                                },
+                                labelText: "Location Data Required",
+                                isDisabled: locationManager.authorizationStatus == .denied
+                            )
+                            .padding(.bottom)
+                        } else {
+                            ActivityButton(
+                                onClick: changeActivity,
+                                currentSearchTerm: currentSearchTerm,
+                                isLoading: isLoading,
+                                isDisabled: locationManager.location == nil
+                            )
+                            .padding(.bottom)
+                        }
                     }
                 }
                 
@@ -161,12 +191,21 @@ struct LocationMap: View {
                     MapList(searchResults: searchResults)
                         .background(.black)
                         .transition(.move(edge: .bottom))
-////                        .animation(.spring(), value: searchResults.count > 0)
+                } else if returnedEmptyResult {
+                    VStack {
+                        Text("No Results")
+                            .font(.headline)
+                        Text("Try again or expand search radius")
+                            .font(.caption)
+                    }
+                    .background(.black)
+                    .transition(.move(edge: .bottom))
                 }
             }
             .onReceive(locationManager.$location) { location in
                 if locationManager.location != nil {
                     print("Valid location")
+                    isFetchingLocation = false
                     updateMapCamera(center: locationManager.location!)
                 } else {
                     locationManager.requestLocation()
@@ -273,11 +312,13 @@ struct LocationMap: View {
             }
         }
         
+        returnedEmptyResult = searchResults.count == 0
+        
         isLoading = false
     }
 }
 
-struct ActivityButton : View {
+struct ActivityButton: View {
     var onClick: () async -> Void
     var currentSearchTerm: String?
     var isLoading: Bool
@@ -290,16 +331,63 @@ struct ActivityButton : View {
             }
         } label: {
             if isLoading {
-                ProgressView()
-                    .tint(.white)
+                Text("Searching locations")
+            } else if isDisabled {
+                Text("Location Data Required")
             } else {
-                Text(currentSearchTerm ?? "Randomize Activity")
+                Label(currentSearchTerm ?? "Randomize Activity", systemImage: "arrow.clockwise")
             }
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.extraLarge)
-        .disabled(isLoading || isDisabled)
+        .allowsHitTesting(!isLoading && !isDisabled)
+        .tint(!isLoading && !isDisabled ? .blue : .gray)
         .font(.title)
+    }
+}
+
+struct BigButton: View {
+    var onClick: () -> Void
+    var labelText: String
+    var isDisabled: Bool
+    
+    var body: some View {
+        Button {
+            Task {
+                onClick()
+            }
+        } label: {
+            Text(labelText)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.extraLarge)
+        .font(.title)
+        .allowsHitTesting(!isDisabled)
+        .tint(!isDisabled ? .blue : .gray)
+    }
+}
+
+struct LoadingNotice: View {
+    var labelText: String
+    var showSpinner: Bool = true
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10.0)
+                .fill(.black)
+                .opacity(0.5)
+            VStack {
+                Text(labelText)
+                    .font(.title)
+                    .fontWeight(.bold)
+                if showSpinner {
+                    ProgressView()
+                        .tint(.white)
+                }
+            }
+            .padding()
+            .padding()
+        }.fixedSize()
     }
 }
 

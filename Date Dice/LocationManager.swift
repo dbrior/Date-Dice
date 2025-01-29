@@ -20,6 +20,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         manager.delegate = self
     }
+    
+    func showPrompt() {
+        manager.requestWhenInUseAuthorization()
+    }
 
     func requestLocation() {
         // Check authorization status first
