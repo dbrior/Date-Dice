@@ -116,8 +116,11 @@ struct LocationMap: View {
             VStack {
                 ZStack {
                     Map(position: $mapCameraPosition) {
-                        ForEach(searchResults, id: \.self) { result in
-                            Marker(item: result)
+                        ForEach(searchResults.indices, id: \.self) { idx in
+                            let result: MKMapItem = searchResults[idx]
+                            let resultName: String = result.placemark.name ?? ""
+                            
+                            Marker(resultName, monogram: Text("\(idx+1)"), coordinate: result.placemark.coordinate)
                         }
                         UserAnnotation()
                         if let location = locationManager.location {
@@ -410,7 +413,7 @@ struct MapListItem : View {
     
     var body: some View {
         HStack {
-            Text("\(idx)")
+            Text("\(idx+1)")
             Spacer()
             HStack {
                 Spacer()
