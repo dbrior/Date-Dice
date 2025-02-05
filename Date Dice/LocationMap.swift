@@ -22,6 +22,9 @@ struct LocationMap: View {
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     ))
     
+    @State private var mapCenter: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 0.0, longitude: 0.0)
+
+    
     @State private var isLoading: Bool = false
     @State private var isFetchingLocation: Bool = false
     @State var showList: Bool = false
@@ -123,11 +126,15 @@ struct LocationMap: View {
                             Marker(resultName, monogram: Text("\(idx+1)"), coordinate: result.placemark.coordinate)
                         }
                         UserAnnotation()
-                        if let location = locationManager.location {
-                            MapCircle(center: location, radius: selectedMeterRadius)
-                                .stroke(.blue, lineWidth: 1.0)
-                                .foregroundStyle(.blue.opacity(0.1))
-                        }
+                        MapCircle(center: mapCenter, radius: selectedMeterRadius)
+                            .stroke(.blue, lineWidth: 1.0)
+                            .foregroundStyle(.blue.opacity(0.1))
+                    }
+                    .onMapCameraChange(frequency: .continuous) { context in
+                        let newLat = context.region.center.latitude
+                        let newLon = context.region.center.longitude
+                        
+                        mapCenter = CLLocationCoordinate2D(latitude: newLat, longitude: newLon)
                     }
                     .mapStyle(.hybrid(elevation: .realistic))
                     .navigationTitle(currentSearchTerm ?? "Roll an activity")
@@ -220,9 +227,12 @@ struct LocationMap: View {
                 }
             }
             .onChange(of: selectedMeterRadius) { oldValue, newValue in
-                updateMapCamera(center: locationManager.location ?? CLLocationCoordinate2D(latitude: 0, longitude: 0))
-                Task {
-                    await performSearch()
+//                updateMapCamera(center: locationManager.location ?? CLLocationCoordinate2D(latitude: 0, longitude: 0))
+                updateMapCamera(center: mapCenter)
+                if currentPoiCategory != nil {
+                    Task {
+                        await performSearch()
+                    }
                 }
             }
         }
@@ -290,12 +300,15 @@ struct LocationMap: View {
     
     @MainActor
     private func performSearch() async {
-        guard !isLoading, let location = locationManager.location else { return }
+//        guard !isLoading, let location = locationManager.location else { return }
+//        guard !isLoading else { return }
+        
+        let location = mapCenter
         
         isLoading = true
         
         let searchRadius = calculateLatitudeDelta(meters: selectedMeterRadius)
-        updateMapCamera(center: locationManager.location!)
+//        updateMapCamera(center: locationManager.location!)
         
         let poiResults = await queryByPoiCategory(category: currentPoiCategory ?? .nightlife, center: location, radius: selectedMeterRadius)
         let stringResults = await queryByString(searchString: currentSearchTerm ?? "Club", center: location, radius: searchRadius)
