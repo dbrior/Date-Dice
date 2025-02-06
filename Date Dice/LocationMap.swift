@@ -126,17 +126,14 @@ struct LocationMap: View {
                             Marker(resultName, monogram: Text("\(idx+1)"), coordinate: result.placemark.coordinate)
                         }
                         UserAnnotation()
-                        MapCircle(center: mapCenter, radius: selectedMeterRadius)
-                            .stroke(.blue, lineWidth: 1.0)
-                            .foregroundStyle(.blue.opacity(0.1))
+                        
+//                        MapCircle(center: mapCenter, radius: selectedMeterRadius)
+//                            .stroke(.blue, lineWidth: 1.0)
+//                            .foregroundStyle(.blue.opacity(0.1))
                     }
                     .onMapCameraChange(frequency: .continuous) { context in
-                        let newLat = context.region.center.latitude
-                        let newLon = context.region.center.longitude
-                        
-                        mapCenter = CLLocationCoordinate2D(latitude: newLat, longitude: newLon)
+                        mapCenter = context.camera.centerCoordinate
                     }
-                    .mapStyle(.hybrid(elevation: .realistic))
                     .navigationTitle(currentSearchTerm ?? "Roll an activity")
                     .overlay(alignment: .top) {
                         VStack {
